@@ -116,11 +116,15 @@
         ::-webkit-scrollbar-track { background: #f1f5f9; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* Autocomplete List Styling */
+        .autocomplete-list {
+            scrollbar-width: thin;
+        }
+        .autocomplete-list::-webkit-scrollbar { width: 4px; }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden text-slate-800 selection:bg-indigo-100 selection:text-indigo-900">
-
-    <datalist id="list-giling-products"></datalist>
 
     <!-- Sidebar Overlay for Mobile -->
     <div id="sidebar-overlay" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-30 hidden md:hidden transition-opacity" onclick="toggleSidebar()"></div>
@@ -135,7 +139,7 @@
                 <div class="leading-tight">
                     <div class="flex items-center gap-1.5">
                         <h1 class="text-sm font-extrabold text-slate-900 tracking-tight">CRUSHER PRO</h1>
-                        <span class="px-1.5 py-0.2 bg-indigo-50 text-indigo-600 rounded text-[9px] font-extrabold border border-indigo-200/60">v4.0</span>
+                        <span class="px-1.5 py-0.2 bg-indigo-50 text-indigo-600 rounded text-[9px] font-extrabold border border-indigo-200/60">v4.1</span>
                     </div>
                     <span class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Giling Division</span>
                 </div>
@@ -241,7 +245,7 @@
 
                             <div class="relative flex-1 sm:flex-none min-w-[140px]">
                                 <select id="giling-group-filter" onchange="applyGilingFilters()" class="w-full pl-3.5 pr-8 py-2 bg-slate-50 hover:bg-slate-100/80 border border-slate-200/90 rounded-xl text-xs font-extrabold text-slate-700 outline-none focus:border-indigo-500 focus:bg-white transition-all appearance-none cursor-pointer">
-                                    <option value="All">Semua Grup (A/B/C)</option>
+                                    <option value="All">Semua Grup</option>
                                     <option value="A">Grup A</option>
                                     <option value="B">Grup B</option>
                                     <option value="C">Grup C</option>
@@ -337,7 +341,7 @@
                         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-3.5 pb-2.5 border-b border-slate-100">
                             <div class="flex items-center gap-2">
                                 <span class="w-2 h-4 rounded-full bg-indigo-600"></span>
-                                <h4 class="text-xs font-extrabold text-slate-800 uppercase tracking-wider">Rekapitulasi Total Per Shift (Shift 1, Shift 2 & Shift 3)</h4>
+                                <h4 class="text-xs font-extrabold text-slate-800 uppercase tracking-wider">Rekapitulasi Total Per Shift (Shift 1, 2 & 3)</h4>
                             </div>
                             <span class="text-[11px] font-semibold text-slate-400">Proporsi hasil giling & komposisi per shift</span>
                         </div>
@@ -576,7 +580,7 @@
                             </div>
                             <div>
                                 <h3 class="text-sm font-extrabold tracking-tight">Preview Laporan WhatsApp</h3>
-                                <p class="text-[11px] text-emerald-100 font-medium">Format rapi, lengkap & siap dibagikan ke grup</p>
+                                <p class="text-[11px] text-emerald-100 font-medium">Format rapi, ringkas & siap dibagikan</p>
                             </div>
                         </div>
                         <button onclick="closeWAModal()" class="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors">
@@ -687,14 +691,20 @@
             const today = new Date();
             const el = document.getElementById('giling-date');
             if(el) el.valueAsDate = today;
-
-            const datalist = document.getElementById('list-giling-products');
-            MASTER_GILING.forEach(p => datalist.innerHTML += `<option value="${p}">`);
             
             // Set default filter ke "Hari Ini"
             selectPreset('today', false);
             addGilingRow(); 
             loadDashGiling();
+        });
+
+        // Hides autocomplete list when clicking outside
+        document.addEventListener('click', function(e) {
+            document.querySelectorAll('.autocomplete-list').forEach(el => {
+                if (!el.contains(e.target) && el.previousElementSibling !== e.target) {
+                    el.classList.add('hidden');
+                }
+            });
         });
 
         function toggleSidebar() { 
@@ -907,7 +917,7 @@
             document.getElementById('pct-total-kulit').innerText = `${pctKulit}%`;
             document.getElementById('pct-total-cream').innerText = `${pctCream}%`;
 
-            // 2. Update Kartu Ringkasan Total Shift 1, Shift 2, Shift 3 (Dibawah Total Giling)
+            // 2. Update Kartu Ringkasan Total Shift 1, Shift 2, Shift 3
             for (let s = 1; s <= 3; s++) {
                 const st = shiftStats[s];
                 const pctShift = grandTotal > 0 ? Math.round((st.total / grandTotal) * 100) : 0;
@@ -1143,6 +1153,38 @@
             listContainer.innerHTML = html;
         }
 
+        // AUTOCOMPLETE DROPDOWN UNTUK PRODUK
+        function showAutocomplete(input) {
+            let val = input.value.toLowerCase();
+            let listContainer = input.nextElementSibling;
+            listContainer.innerHTML = '';
+            
+            // Tampilkan semua jika kosong, atau saring berdasarkan input
+            let matches = MASTER_GILING.filter(p => p.toLowerCase().includes(val));
+            if (val === '') matches = MASTER_GILING;
+            
+            if (matches.length === 0) {
+                listContainer.classList.add('hidden');
+                return;
+            }
+            
+            matches.forEach(p => {
+                let div = document.createElement('div');
+                div.className = 'px-3 py-2 text-xs font-bold text-slate-700 hover:bg-indigo-50 cursor-pointer border-b border-slate-100 last:border-0';
+                div.innerText = p;
+                
+                // Gunakan mousedown agar event klik firing sebelum input kehilangan fokus (blur)
+                div.onmousedown = function(e) {
+                    e.preventDefault(); 
+                    input.value = p;
+                    listContainer.classList.add('hidden');
+                };
+                listContainer.appendChild(div);
+            });
+            
+            listContainer.classList.remove('hidden');
+        }
+
         function addGilingRow() {
             if (gilingRowCount >= 6) { showToast("Maksimal 6 produk dalam sekali input!"); return; }
             gilingRowCount++;
@@ -1150,9 +1192,10 @@
             const html = `
                 <div class="giling-row grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 p-4 border border-slate-200/80 bg-white rounded-xl relative shadow-2xs">
                     <span class="absolute -top-2.5 -left-2.5 bg-indigo-600 text-white w-6 h-6 rounded-lg flex items-center justify-center text-xs font-extrabold shadow-sm">${gilingRowCount}</span>
-                    <div>
+                    <div class="relative">
                         <label class="modern-label text-[10px]">Nama Produk</label>
-                        <input type="text" list="list-giling-products" class="g-prod modern-input py-2 text-xs" placeholder="Ketik / Pilih..." required>
+                        <input type="text" class="g-prod modern-input py-2 text-xs" placeholder="Ketik / Pilih..." required autocomplete="off" oninput="showAutocomplete(this)" onfocus="showAutocomplete(this)">
+                        <div class="autocomplete-list absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-40 overflow-y-auto hidden"></div>
                     </div>
                     <div>
                         <label class="modern-label text-[10px]">Tanggal Produksi</label>
@@ -1234,7 +1277,7 @@
             setTimeout(() => t.classList.add('-translate-y-24', 'opacity-0'), 3200);
         }
 
-        // --- GENERATOR TEKS LAPORAN WHATSAPP PROFESIONAL, RAPI & MUDAH DIPAHAMI ---
+        // --- GENERATOR TEKS LAPORAN WHATSAPP (LEBIH SIMPLE, RINGKAS & SEDIKIT EMOJI/ENTER) ---
         function generateWAReportText() {
             let sdStr = document.getElementById('giling-start-date').value; 
             let edStr = document.getElementById('giling-end-date').value;
@@ -1301,76 +1344,63 @@
 
             let periodeFormatted = (sdStr === edStr) 
                 ? formatIndoDate(sdStr, true) 
-                : `${formatIndoDate(sdStr, false)} s/d ${formatIndoDate(edStr, false)}`;
+                : `${formatIndoDate(sdStr, false)} - ${formatIndoDate(edStr, false)}`;
 
-            let text = `*🏭 LAPORAN REKAPAN PRODUKSI GILING*\n`;
-            text += `*CRUSHER DIVISION*\n`;
-            text += `━━━━━━━━━━━━━━━━━━━━━━\n`;
-            text += `📅 *Periode:* ${periodeFormatted}\n`;
-            text += `👥 *Filter Grup:* ${group === 'All' ? 'Semua Grup (A/B/C)' : 'Grup ' + group}\n`;
-            text += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+            // Format Ringkas & Rapih
+            let text = `*LAPORAN REKAP GILING*\n`;
+            text += `Periode: ${periodeFormatted}\n`;
+            text += `Grup: ${group === 'All' ? 'Semua Grup' : group}\n\n`;
 
-            // BAGIAN 1: RINGKASAN EKSEKUTIF (MUDAH DIBACA SEKILAS)
-            text += `*📊 RINGKASAN TOTAL & SHIFT:*\n`;
+            text += `*RINGKASAN TOTAL:*\n`;
             for (let s = 1; s <= 3; s++) {
                 let st = shifts[s];
                 let grpInfo = st.groups.size > 0 ? ` (Grup ${Array.from(st.groups).join('/')})` : '';
-                let pct = grandTotal > 0 ? Math.round((st.totalShift / grandTotal) * 100) : 0;
-                text += `• *Total Shift ${s}${grpInfo}:* ${st.totalShift.toLocaleString('id-ID')} Kg _(${pct}%)_\n`;
+                text += `Shift ${s}${grpInfo}: ${st.totalShift.toLocaleString('id-ID')} Kg\n`;
             }
-            text += `----------------------------------------\n`;
-            text += `🍪 *Total Kulit & Non-Cream:* ${grandKulit.toLocaleString('id-ID')} Kg\n`;
-            text += `🍦 *Total Produk Cream:* ${grandCream.toLocaleString('id-ID')} Kg\n`;
-            text += `🏆 *GRAND TOTAL GILING: ${grandTotal.toLocaleString('id-ID')} KG*\n\n`;
-            text += `━━━━━━━━━━━━━━━━━━━━━━\n`;
-            text += `*📋 RINCIAN DETAIL PER SHIFT:*\n\n`;
-
-            // BAGIAN 2: RINCIAN LENGKAP PER SHIFT
+            text += `\n`;
+            text += `Total Kulit: ${grandKulit.toLocaleString('id-ID')} Kg\n`;
+            text += `Total Cream: ${grandCream.toLocaleString('id-ID')} Kg\n`;
+            text += `*GRAND TOTAL: ${grandTotal.toLocaleString('id-ID')} KG*\n\n`;
+            
+            text += `*RINCIAN PER SHIFT:*\n`;
+            
             for (let s = 1; s <= 3; s++) {
                 let st = shifts[s];
-                let grpLabel = st.groups.size > 0 ? ` — GRUP ${Array.from(st.groups).join('/')}` : ' — (Kosong)';
-                text += `*🔹 SHIFT ${s}${grpLabel}*\n`;
-                text += `👷 *Tenaga Kerja (MPP):* Giling: *${st.mppGiling || 0}* | Sortir: *${st.mppSortir || 0}*\n`;
+                if (st.totalShift === 0) continue; // Skip jika shift kosong
 
-                // Sub-bagian Kulit & Non-Cream
-                text += `🍪 *Kulit & Non-Cream (${st.totalKulit.toLocaleString('id-ID')} Kg):*\n`;
+                let grpLabel = st.groups.size > 0 ? `Grup ${Array.from(st.groups).join('/')}` : '-';
+                
+                text += `\n*SHIFT ${s} (${grpLabel})*\n`;
+                text += `MPP Giling: ${st.mppGiling || 0} | Sortir: ${st.mppSortir || 0}\n`;
+
                 let kulitKeys = Object.keys(st.kulit);
                 if (kulitKeys.length > 0) {
+                    text += `Kulit/Non-Cream:\n`;
                     kulitKeys.forEach(p => {
-                        text += `   ▸ ${p} : *${st.kulit[p].toLocaleString('id-ID')} Kg*\n`;
+                        text += `- ${p}: ${st.kulit[p].toLocaleString('id-ID')} Kg\n`;
                     });
-                } else {
-                    text += `   ▸ _Tidak ada gilingan (0 Kg)_\n`;
                 }
 
-                // Sub-bagian Produk Cream
-                text += `🍦 *Produk Cream (${st.totalCream.toLocaleString('id-ID')} Kg):*\n`;
                 let creamKeys = Object.keys(st.cream);
                 if (creamKeys.length > 0) {
+                    text += `Produk Cream:\n`;
                     creamKeys.forEach(p => {
-                        text += `   ▸ ${p} : *${st.cream[p].toLocaleString('id-ID')} Kg*\n`;
+                        text += `- ${p}: ${st.cream[p].toLocaleString('id-ID')} Kg\n`;
                     });
-                } else {
-                    text += `   ▸ _Tidak ada gilingan (0 Kg)_\n`;
                 }
 
-                // Sub-bagian Catatan / Kendala
                 let uniqueNotes = [...new Set(st.notes)];
                 if (uniqueNotes.length > 0) {
-                    text += `⚠️ *Catatan / Kendala:*\n`;
+                    text += `Catatan:\n`;
                     uniqueNotes.forEach(n => {
-                        text += `   • ${n}\n`;
+                        text += `- ${n}\n`;
                     });
-                } else {
-                    text += `✅ *Catatan / Kendala:* Operasional Lancar\n`;
                 }
-
-                text += `👉 *TOTAL SHIFT ${s} : ${st.totalShift.toLocaleString('id-ID')} KG*\n`;
-                if (s < 3) text += `----------------------------------------\n`;
+                
+                text += `Total S${s}: ${st.totalShift.toLocaleString('id-ID')} Kg\n`;
             }
 
-            text += `━━━━━━━━━━━━━━━━━━━━━━\n`;
-            text += `_Digenerate otomatis oleh Crusher Pro App_`;
+            text += `\n_Crusher Pro_`;
 
             return text.trim();
         }
